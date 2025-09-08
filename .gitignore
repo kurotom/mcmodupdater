@@ -1,0 +1,12 @@
+*/__pycache__
+__pycache__
+*/*.json
+*.json
+*.pkl
+*.txt
+dist/
+a.py
+x.py
+c.py
+notes.txt
+run.py
