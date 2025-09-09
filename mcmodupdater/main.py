@@ -26,6 +26,8 @@ import multiprocessing
 
 from time import sleep
 
+import re
+
 
 from typing import (
     Literal,
@@ -59,11 +61,13 @@ class ModUpdater:
         self,
         api_key: str,
         modloader: MODLOADERS = "forge",
+        auto_report: bool = False
     ) -> None:
         """
         """
         self.api_key = api_key
         self.modloader = modloader
+        self.auto_report = auto_report
         self.modloaderId = CurseForgeAPI.getModLoaderId(modloader)
         self.n_threads = max(1, multiprocessing.cpu_count() // 2)
         self.failed_update = set() #[]
@@ -94,12 +98,12 @@ class ModUpdater:
         """
         if len(filesList) > 10:
             return ThreadExecutor.to_thread_single_query(
-                                                    MurmurHash2CurseForge.hash32,
-                                                    "Calculating hash",
-                                                    None,
-                                                    self.n_threads + 1,
-                                                    filesList,
-                                                )
+                                                MurmurHash2CurseForge.hash32,
+                                                "Calculating hash",
+                                                None,
+                                                self.n_threads + 1,
+                                                filesList,
+                                            )
         else:
             return [
                 MurmurHash2CurseForge.hash32(data=item, seed=1)
@@ -162,12 +166,14 @@ class ModUpdater:
         if PathClass.is_dir(path) is False:
             return None
 
-        dirFiles = PathClass.listdir(path)
+        abs_path_dir = PathClass.absolute_path(path)
+        dirFiles = PathClass.listdir(abs_path_dir)
+
 
         filter_jars = [
-            PathClass.join(path, item)
+            PathClass.join(abs_path_dir, item)
             for item in dirFiles
-            if PathClass.is_file(PathClass.join(path, item))
+            if PathClass.is_file(PathClass.join(abs_path_dir, item))
             if item.endswith(".jar")
         ]
 
@@ -215,12 +221,15 @@ class ModUpdater:
 
         datafingerprints = ThreadExecutor.to_thread_single_query(
                             RequestData.get_files_by_fingerprints,
-                            "Searching",
+                            "Searching group",
                             False,
                             self.n_threads + 1,
                             args_fingerprints,
                         )
-        # print(datafingerprints)
+
+        if datafingerprints:
+            if datafingerprints[0] == {}:
+                return []
 
         # # prepare args for the function.
         # projectsIds = fingerprints  # test
@@ -229,58 +238,59 @@ class ModUpdater:
                         for items in datafingerprints
                         for item in items["exactMatches"]
                     ]
-        # print(projectsIds)
 
-        if projectsIds:
-            args_getmodfiles = [
-                        (
-                            self.api_key,
-                            modId,
-                            version,
-                            self.modloaderId,
-                            # CurseForgeAPI.getModLoaderId(modloader),
-                            0
-                        )
-                        for modId in projectsIds
-                    ]
-            # print(args_getmodfiles)
+        if len(projectsIds) == 0:
+            return []
 
-            datagetmodfiles = ThreadExecutor.to_thread_single_query(
-                                    RequestData.getModFiles,
-                                    "Getting files",
-                                    True,
-                                    self.n_threads + 1,
-                                    args_getmodfiles
-                                )
+        args_getmodfiles = [
+                    (
+                        self.api_key,
+                        modId,
+                        version,
+                        self.modloaderId,
+                        # CurseForgeAPI.getModLoaderId(modloader),
+                        0
+                    )
+                    for modId in projectsIds
+                ]
+        # print(args_getmodfiles)
 
-            for results in datagetmodfiles:
-                for id, items in results.items():
-                    try:
-                        item = items[0]  # last element - last updated
-                        modfile = ModFile(
-                                    id=item["id"],
-                                    modId=item["modId"],
-                                    displayName=item["displayName"],
-                                    fileName=item["fileName"],
-                                    releaseType=item["releaseType"],
-                                    fileLength=item["fileLength"],
-                                    downloadUrl=item["downloadUrl"],
-                                    dependencies=item["dependencies"],
-                                    fileFingerprint=item["fileFingerprint"],
-                                )
+        datagetmodfiles = ThreadExecutor.to_thread_single_query(
+                                RequestData.getModFiles,
+                                "Getting files",
+                                True,
+                                self.n_threads + 1,
+                                args_getmodfiles
+                            )
 
-                        if modfile.downloadUrl:
-                            if only_release:
-                                relType = CurseForgeAPI.releaseType["release"]
-                                if modfile.releaseType == relType:
-                                    modslist.add(modfile)
-                            else:
+        for results in datagetmodfiles:
+            for id, items in results.items():
+                try:
+                    item = items[0]  # last element - last updated
+                    modfile = ModFile(
+                                id=item["id"],
+                                modId=item["modId"],
+                                displayName=item["displayName"],
+                                fileName=item["fileName"],
+                                releaseType=item["releaseType"],
+                                fileLength=item["fileLength"],
+                                downloadUrl=item["downloadUrl"],
+                                dependencies=item["dependencies"],
+                                fileFingerprint=item["fileFingerprint"],
+                            )
+
+                    if modfile.downloadUrl:
+                        if only_release:
+                            relType = CurseForgeAPI.releaseType["release"]
+                            if modfile.releaseType == relType:
                                 modslist.add(modfile)
                         else:
-                            self.add_failed_update(modfile=modfile)
+                            modslist.add(modfile)
+                    else:
+                        self.add_failed_update(modfile=modfile)
 
-                    except IndexError as e:
-                        self.add_failed_update(id=id)
+                except IndexError as e:
+                    self.add_failed_update(id=id)
 
         return list(modslist)
 
@@ -495,7 +505,10 @@ class ModUpdater:
         except Exception as e:
             print(e)
 
-    def obtain_failed_links(self) -> list:
+    def report_failed_updates(
+        self,
+        show: bool = False
+    ) -> list:
         """
         If the download URL is unavailable (e.g., the mod/project
         license) or the update for the specified version cannot be
@@ -504,10 +517,9 @@ class ModUpdater:
         Returns
             list: list of filenames and URLs from the mod's website.
         """
-        data = []
         if not self.failed_update:
             print("All mods are updated successfully.")
-            return data
+            return []
 
         results = ThreadExecutor.to_thread_single_query(
                                         self.getMod,
@@ -516,7 +528,16 @@ class ModUpdater:
                                         self.n_threads + 1,
                                         self.failed_update
                                     )
+        return self.__format_report(results)
 
+
+    def __format_report(
+        self,
+        results: list
+    ) -> list:
+        """
+        """
+        data = []
         for item in results:
             mod_ = [
                     it
@@ -564,3 +585,42 @@ class ModUpdater:
                             custom_filters=filters,
                         )
         return get_models(data_clean)
+
+    def write_report(self) -> None:
+        """
+        """
+        filename_ = "failed_mod_updates.txt"
+
+        results = ThreadExecutor.to_thread_single_query(
+                                        self.getMod,
+                                        None,
+                                        True,
+                                        self.n_threads + 1,
+                                        self.failed_update
+                                    )
+
+        list_data_formated = self.__format_report(results)
+
+        strings = ""
+        for name, link in list_data_formated:
+            strings += f"{name}, {link}\n"
+
+        path = PathClass.join(PathClass.get_desktop(), filename_)
+
+        with Writer(filename=path, mode="w") as file:
+            file.write(strings)
+
+        print(f'\nReport written in "{path}".')
+
+
+    def __enter__(self) -> None:
+        """
+        """
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        """
+        """
+        if self.auto_report:
+            self.write_report()
+        print("Good bye.")

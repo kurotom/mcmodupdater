@@ -2,6 +2,7 @@
 """
 """
 
+
 from mcmodupdater.models import (
     ModFile,
     CurseForgeAPI
@@ -9,6 +10,18 @@ from mcmodupdater.models import (
 
 import re
 import json
+
+
+def check_version_format(
+    version: str
+) -> bool:
+    """
+    """
+    item = re.findall(r'(\d{1}\.\d+(?:\.\d+){0,2})', version)
+    if item:
+        if item[0] == version:
+            return True
+    return False
 
 
 def load_data(path: str) -> list:

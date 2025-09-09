@@ -14,33 +14,6 @@ from typing import Union
 class ThreadExecutor:
     """
     """
-    # @staticmethod
-    # def to_thread_single_query(
-    #     function: callable,
-    #     workers: int = 1,
-    #     *args,
-    #     **kwargs,
-    # ) -> list:
-    #     """
-    #     10 queries
-    #     """
-    #     i = 0
-    #     with ThreadPoolExecutor(max_workers=workers) as executor:
-    #         resultados = []
-    #         for args_function in args[0]:
-    #             resultados.append(
-    #                 executor.submit(
-    #                     function,
-    #                     args_function
-    #                 )
-    #             )
-    #             i+=1
-    #             if i % 10 == 0:
-    #                 sleep(0.5)
-    #
-    #     r = [result.result() for result in resultados]
-    #     return r
-
 
     @staticmethod
     def status(
@@ -54,9 +27,9 @@ class ThreadExecutor:
         with lock:
             percent = (index[0] / total) * 100
 
-            msg = f"\r\t{operation}:"
+            msg = f"\r\t{operation}:".ljust(23)
             msg += f"\t{index[0]}-{total}"
-            msg += f"   ({percent:.2f}%)"
+            msg += f"  ({percent:.2f}%)"
             print(msg, end="", flush=True)
 
             if index[0] >= total:
@@ -69,7 +42,7 @@ class ThreadExecutor:
     @staticmethod
     def to_thread_single_query(
         function: callable,
-        operation: str,
+        operation: str = None,
         single_queries: Union[bool, None] = False,
         workers: int = 1,
         *args,
@@ -83,12 +56,13 @@ class ThreadExecutor:
         total = len(args[0])
         resultados = []
 
-        ThreadExecutor.status(
-                            operation=operation,
-                            index=index,
-                            total=total,
-                            lock=lock,
-                        )
+        if operation is not None:
+            ThreadExecutor.status(
+                                operation=operation,
+                                index=index,
+                                total=total,
+                                lock=lock,
+                            )
 
         i = 0
         with ThreadPoolExecutor(max_workers=workers) as executor:
@@ -120,11 +94,12 @@ class ThreadExecutor:
                 result = future.result()
                 resultados.append(result)
 
-                ThreadExecutor.status(
-                                    operation=operation,
-                                    index=index,
-                                    total=total,
-                                    lock=lock,
-                                )
+                if operation is not None:
+                    ThreadExecutor.status(
+                                        operation=operation,
+                                        index=index,
+                                        total=total,
+                                        lock=lock,
+                                    )
 
         return resultados
