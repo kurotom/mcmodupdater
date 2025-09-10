@@ -72,6 +72,11 @@ class ModUpdater:
         self.n_threads = max(1, multiprocessing.cpu_count() // 2)
         self.failed_update = set() #[]
 
+    def some_errors(self) -> bool:
+        """
+        """
+        return len(self.failed_update) > 0
+
     def change_api_key(
         self,
         newkey: str
@@ -97,13 +102,13 @@ class ModUpdater:
         """
         """
         if len(filesList) > 10:
-            return ThreadExecutor.to_thread_single_query(
-                                                MurmurHash2CurseForge.hash32,
-                                                "Calculating hash",
-                                                None,
-                                                self.n_threads + 1,
-                                                filesList,
-                                            )
+            return ThreadExecutor.to_thread(
+                                        MurmurHash2CurseForge.hash32,
+                                        "Calculating hash",
+                                        None,
+                                        self.n_threads + 1,
+                                        filesList,
+                                    )
         else:
             return [
                 MurmurHash2CurseForge.hash32(data=item, seed=1)
@@ -164,7 +169,7 @@ class ModUpdater:
             self.change_modloader(modloader)
 
         if PathClass.is_dir(path) is False:
-            return None
+            return []
 
         abs_path_dir = PathClass.absolute_path(path)
         dirFiles = PathClass.listdir(abs_path_dir)
@@ -219,13 +224,13 @@ class ModUpdater:
                 ]
         # print(args_fingerprints)
 
-        datafingerprints = ThreadExecutor.to_thread_single_query(
-                            RequestData.get_files_by_fingerprints,
-                            "Searching group",
-                            False,
-                            self.n_threads + 1,
-                            args_fingerprints,
-                        )
+        datafingerprints = ThreadExecutor.to_thread(
+                                    RequestData.get_files_by_fingerprints,
+                                    "Searching",
+                                    False,
+                                    self.n_threads + 1,
+                                    args_fingerprints,
+                                )
 
         if datafingerprints:
             if datafingerprints[0] == {}:
@@ -255,7 +260,7 @@ class ModUpdater:
                 ]
         # print(args_getmodfiles)
 
-        datagetmodfiles = ThreadExecutor.to_thread_single_query(
+        datagetmodfiles = ThreadExecutor.to_thread(
                                 RequestData.getModFiles,
                                 "Getting files",
                                 True,
@@ -371,7 +376,7 @@ class ModUpdater:
         #             files.append(mod)
 
                 # print(files)
-                # matchs[item["name"]] = files
+                # matches[item["name"]] = files
         # return files
 
 
@@ -479,14 +484,16 @@ class ModUpdater:
         """
         if not isinstance(modfiles, (list, tuple, set)):
             return
+        if not modfiles:
+            return
 
-        ThreadExecutor.to_thread_single_query(
-                                        self.download_file,
-                                        "Downloading",
-                                        True,
-                                        self.n_threads + 1,
-                                        modfiles
-                                    )
+        ThreadExecutor.to_thread(
+                            self.download_file,
+                            "Downloading",
+                            True,
+                            self.n_threads + 1,
+                            modfiles
+                        )
 
     def add_failed_update(
         self,
@@ -521,9 +528,9 @@ class ModUpdater:
             print("All mods are updated successfully.")
             return []
 
-        results = ThreadExecutor.to_thread_single_query(
+        results = ThreadExecutor.to_thread(
                                         self.getMod,
-                                        "Consulting information",
+                                        "Information gathering",
                                         True,
                                         self.n_threads + 1,
                                         self.failed_update
@@ -589,9 +596,12 @@ class ModUpdater:
     def write_report(self) -> None:
         """
         """
+        if len(self.failed_update) == 0:
+            return
+
         filename_ = "failed_mod_updates.txt"
 
-        results = ThreadExecutor.to_thread_single_query(
+        results = ThreadExecutor.to_thread(
                                         self.getMod,
                                         None,
                                         True,
@@ -599,10 +609,10 @@ class ModUpdater:
                                         self.failed_update
                                     )
 
-        list_data_formated = self.__format_report(results)
+        list_data_formatted = self.__format_report(results)
 
         strings = ""
-        for name, link in list_data_formated:
+        for name, link in list_data_formatted:
             strings += f"{name}, {link}\n"
 
         path = PathClass.join(PathClass.get_desktop(), filename_)

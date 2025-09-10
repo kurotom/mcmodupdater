@@ -16,35 +16,53 @@ from typing import (
 
 class RequestData:
 
+    ERROR_CODE_ = 777
+
     @staticmethod
     def __get(
         api_key: str,
         url: str,
         params: dict = {},
-    ) -> requests.models.Response:
+    ) -> requests.Response:
         """
         """
-        headers = RequestData.__headers(api_key)
-        req = requests.get(url, headers=headers, params=params)
-        return req
+        try:
+            headers = RequestData.__headers(api_key)
+            req = requests.get(url, headers=headers, params=params)
+            return req
+        except Exception as e:
+            fake_response = requests.Response()
+            fake_response.status_code = RequestData.ERROR_CODE_
+            fake_response._content = str(e).encode("utf-8")
+            fake_response.url = url
+            fake_response.is_fake = True
+            return fake_response
 
     @staticmethod
     def __post(
         api_key: str,
         url: str,
         body: dict,
-    ) -> requests.models.Response:
+    ) -> requests.Response:
         """
         """
         headers = RequestData.__headers(api_key)
         headers["Content-Type"] = "application/json"
 
-        res = requests.post(
-                        url,
-                        headers=headers,
-                        json=body
-                    )
-        return res
+        try:
+            res = requests.post(
+                            url,
+                            headers=headers,
+                            json=body
+                        )
+            return res
+        except Exception as e:
+            fake_response = requests.Response()
+            fake_response.status_code = RequestData.ERROR_CODE_
+            fake_response._content = str(e).encode("utf-8")
+            fake_response.url = url
+            fake_response.is_fake = True
+            return fake_response
 
     @staticmethod
     def __headers(
@@ -132,7 +150,7 @@ class RequestData:
     ) -> list:
         """
         """
-        print(filesIds)
+        # print(filesIds)
         body = {"fileIds": filesIds}
         url = CurseForgeAPI.base + CurseForgeAPI.postGetFiles
         req = RequestData.__post(api_key, url, body)

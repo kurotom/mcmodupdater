@@ -27,7 +27,7 @@ class ThreadExecutor:
         with lock:
             percent = (index[0] / total) * 100
 
-            msg = f"\r\t{operation}:".ljust(23)
+            msg = f"\r\t{operation}:".ljust(22)
             msg += f"\t{index[0]}-{total}"
             msg += f"  ({percent:.2f}%)"
             print(msg, end="", flush=True)
@@ -40,7 +40,7 @@ class ThreadExecutor:
             sleep(0.2)
 
     @staticmethod
-    def to_thread_single_query(
+    def to_thread(
         function: callable,
         operation: str = None,
         single_queries: Union[bool, None] = False,
