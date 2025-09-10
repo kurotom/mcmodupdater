@@ -75,7 +75,6 @@ def main():
         return
 
     try:
-        input()
         with ModUpdater(
             api_key=key_api,
             modloader=modloader,
