@@ -28,8 +28,8 @@ $ pip install mcmodupdater
 # Usage - CLI
 
 ```text
-$ mcmodupdater --help
-usage: mcmodupdater [-h] -k KEY_API [-p PATH] [-m {forge,cauldron,liteloader,fabric,quilt,neoforge}] [-v VERSION] [--only-release] [--report-failed]
+$ modupdater --help
+usage: modupdater [-h] -k KEY_API [-p PATH] [-m {forge,cauldron,liteloader,fabric,quilt,neoforge}] [-v VERSION] [--only-release] [--report-failed]
 
 Update mods automatically from CurseForge API.
 
@@ -51,12 +51,12 @@ Automates the tedious task of updating mods, ;).
 # Examples
 
 ```bash
-$ mcmodupdater -k 'api_key_string' -p DIRECTORY_MODS -m forge -v 1.21.8 --report-failed
+$ modupdater -k 'api_key_string' -p DIRECTORY_MODS -m forge -v 1.21.8 --report-failed
 ```
 
 * Using the default path of the “mods” directory, without using the `-p|--path` argument.
 
 ```bash
-$ mcmodupdater -k 'api_key_string' -m forge -v 1.21.8 --report-failed
+$ modupdater -k 'api_key_string' -m forge -v 1.21.8 --report-failed
 ```
 

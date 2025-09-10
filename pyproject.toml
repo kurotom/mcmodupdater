@@ -1,6 +1,6 @@
 [project]
 name = "mcmodupdater"
-version = "0.1.0"
+version = "0.1.1"
 description = ""
 authors = [
     {name = "kurotom",email = "55354389+kurotom@users.noreply.github.com"}
