@@ -8,12 +8,14 @@ In case of errors, it will generate a report with the address of the mod project
 > You need a CurseForge API key, go to `https://docs.curseforge.com/rest-api/`, follow the instructions to create a account and gets your key and store carefully.
 >
 
-> ![NOTE]
+
+> [!NOTE]
 > Some mods, due to their license, do not display the download URLs for the version you are looking for, in which case you will have to visit and download these mods manually.
 > In these cases, `mcmodupdater` will show you the address of the mod project with this situation so you can download it manually.
 >
 > Downloaded mods are stored on the *desktop* in the “mods_updated” directory.
 > If the mod update fails, a report (txt) will be generated on the *desktop* with the name “failed_mod_updates.txt,” which will contain the name of the mod project and its URL.
+> 
 
 
 # Installation
@@ -46,7 +48,15 @@ optional arguments:
 Automates the tedious task of updating mods, ;).
 ```
 
+# Examples
 
 ```bash
 $ mcmodupdater -k 'api_key_string' -p DIRECTORY_MODS -m forge -v 1.21.8 --report-failed
 ```
+
+* Using the default path of the “mods” directory, without using the `-p|--path` argument.
+
+```bash
+$ mcmodupdater -k 'api_key_string' -m forge -v 1.21.8 --report-failed
+```
+
