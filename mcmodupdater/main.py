@@ -7,14 +7,11 @@ from mcmodupdater.models import (
     ModFile
 )
 
-from mcmodupdater.utils import *
-
 from mcmodupdater.pathclass import PathClass
 
 from mcmodupdater.requests_handler import RequestData
 
 from mcmodupdater.hashing import MurmurHash2CurseForge
-
 
 from mcmodupdater.executorThreadsHandler import ThreadExecutor
 
@@ -22,11 +19,7 @@ from mcmodupdater.writer import Writer
 
 
 import multiprocessing
-
-
-from time import sleep
-
-import re
+import sys
 
 
 from typing import (
@@ -34,8 +27,6 @@ from typing import (
     Union,
     List,
 )
-
-
 
 
 
@@ -70,7 +61,29 @@ class ModUpdater:
         self.auto_report = auto_report
         self.modloaderId = CurseForgeAPI.getModLoaderId(modloader)
         self.n_threads = max(1, multiprocessing.cpu_count() // 2)
-        self.failed_update = set() #[]
+        self.failed_update = set()
+
+    def default_mods_path(self) -> str:
+        """
+        """
+        path = ""
+        home = PathClass.get_home
+        if sys.platform == 'linux':
+            path = PathClass.join(
+                                home,
+                                r".minecraft/mods"
+                            )
+        elif sys.platform == 'darwin':
+            path = PathClass.join(
+                                home,
+                                r"Library/Application Support/minecraft/mods"
+                            )
+        elif sys.platform == 'win32':
+            path = PathClass.join(
+                                home,
+                                r"AppData\Roaming\.minecraft\mods"
+                            )
+        return path
 
     def some_errors(self) -> bool:
         """
@@ -94,7 +107,6 @@ class ModUpdater:
         self.modloader = modloader
         self.modloaderId = CurseForgeAPI.getModLoaderId(modloader)
 
-
     def calculate_hashes(
         self,
         filesList: list,
@@ -115,50 +127,10 @@ class ModUpdater:
                 for item in filesList
             ]
 
-    def from_file(
-        self,
-        file: str,
-        version: str,
-        filters: list = [],
-        only_release: bool = True
-    ) -> dict:
-        """
-        """
-        if PathClass.is_file(file) is False:
-            return
-
-        data = load_data(file)
-        modelsData = self.to_model(
-                            data=data,
-                            filters=filters,
-                        )
-
-        modelsData.sort()
-
-        mods = []
-
-        for i in range(0, len(modelsData), 5):
-            # print("Chunk ", 0 + i, 5 + i)
-            # print(modelsData[0 + i : 5 + i])
-            # if i == 120:
-            for item in modelsData[0 + i : 5 + i]:
-                print(item)
-
-                x = self.search_mod(
-                    name=item.name,
-                    version=version,
-                    only_release=only_release
-                )
-                # mods.append(x)
-                if len(x) == 0:
-                    print(item.name, len(x))
-                sleep(1)
-
-
     def from_path(
         self,
-        path: str,
         version: str,
+        path: str = None,
         modloader: MODLOADERS = None,
         only_release: bool = True
     ) -> List[ModFile]:
@@ -168,12 +140,14 @@ class ModUpdater:
         if modloader:
             self.change_modloader(modloader)
 
-        if PathClass.is_dir(path) is False:
-            return []
+        if path:
+            if PathClass.is_dir(path) is False:
+                return []
+        else:
+            path = self.default_mods_path()
 
         abs_path_dir = PathClass.absolute_path(path)
         dirFiles = PathClass.listdir(abs_path_dir)
-
 
         filter_jars = [
             PathClass.join(abs_path_dir, item)
@@ -192,8 +166,6 @@ class ModUpdater:
                             )
 
         return results
-
-
 
     def get_files_by_fingerprints(
         self,
@@ -298,87 +270,6 @@ class ModUpdater:
                     self.add_failed_update(id=id)
 
         return list(modslist)
-
-
-    def search_mod(
-        self,
-        name: str,
-        version: str = "last",
-        only_release: bool = True
-    ) -> dict:
-        """
-        """
-        # name = name.lower()
-
-        results = RequestData.search_mod(
-            api_key=self.api_key,
-            version=version,
-            modloader=self.modloader,
-            name=name,
-            sortField="lastupdated",
-        )
-
-        # print(len(results))
-        mod_matches = []
-
-        for item in results:
-            for it in item["latestFilesIndexes"]:
-                if name == it["filename"]:
-                    # print(it["filename"])
-                    if it["gameVersion"] == version:
-                        if "modLoader" in it:
-                            # print(">", item["name"])
-                            mod = ModFile(
-                                name=item["name"],
-                                filename=it["filename"],
-                                slug=item["slug"],
-                                modId=item["id"],
-                                fileId=it["fileId"],
-                                modLoader=it["modLoader"],
-                                releaseType=it["releaseType"],
-                                version=it["gameVersion"],
-                            )
-                            mod_matches.append(mod)
-
-        if len(mod_matches) == 0:
-            print(name)
-
-
-
-
-        # for item in results:
-        #     n = item["name"].lower().replace(" ", "")
-        #     # print(n, get_names_flat(n))
-        #     if name in get_names_flat(n):
-        #         for it in item["latestFilesIndexes"]:
-        #             if it["gameVersion"] == version:
-        #                 if "modLoader" in it:
-        #                     # print(item["name"])
-        #                     mod = ModFile(
-        #                         name=item["name"],
-        #                         filename=it["filename"],
-        #                         slug=item["slug"],
-        #                         modId=item["id"],
-        #                         fileId=it["fileId"],
-        #                         modLoader=it["modLoader"],
-        #                         releaseType=it["releaseType"],
-        #                         version=it["gameVersion"],
-        #                     )
-        #                     mod_matches.append(mod)
-        #
-        # files = []
-        # for mod in mod_matches:
-        #     if mod.releaseType is not None:
-        #         if only_release:
-        #             if int(mod.releaseType) == CurseForgeAPI.releaseType["release"]:
-        #                 files.append(mod)
-        #         else:
-        #             files.append(mod)
-
-                # print(files)
-                # matches[item["name"]] = files
-        # return files
-
 
     def get_file(
         self,
@@ -537,7 +428,6 @@ class ModUpdater:
                                     )
         return self.__format_report(results)
 
-
     def __format_report(
         self,
         results: list
@@ -557,41 +447,6 @@ class ModUpdater:
                 d = (item["name"], item["links"]["websiteUrl"] + url)
                 data.append(d)
         return data
-
-
-
-
-
-    # def get_mod_model(
-    #     self,
-    #     filename: str
-    # ) -> None:
-    #     """
-    #     """
-    #     data = clear_text(filename=filename, filters=default_filters)
-    #     print(">>", data)
-    #     return ModFile(
-    #         name=data[1],
-    #         filename=data[0],
-    #         slug=data[1],
-    #         in_db=False,
-    #     )
-
-    def to_model(
-        self,
-        data: list,
-        # filepath: str,
-        filters: list = []
-    ) -> list:
-        """
-        """
-        filters = filters + default_filters
-        # data = load_data(path=filepath)
-        data_clean = clear_data(
-                            data=data,
-                            custom_filters=filters,
-                        )
-        return get_models(data_clean)
 
     def write_report(self) -> None:
         """

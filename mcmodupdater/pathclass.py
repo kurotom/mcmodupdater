@@ -76,7 +76,6 @@ class PathClass:
     ) -> bool:
         """
         """
-        # print(path)
         return os.path.isfile(path)
 
     def is_dir(

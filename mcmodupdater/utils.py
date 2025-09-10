@@ -12,6 +12,7 @@ import re
 import json
 
 
+
 def check_version_format(
     version: str
 ) -> bool:

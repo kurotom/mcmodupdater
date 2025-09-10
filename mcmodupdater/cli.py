@@ -74,28 +74,32 @@ def main():
         print("The argument `-v|--version` is not in the correct format.")
         return
 
+    try:
+        input()
+        with ModUpdater(
+            api_key=key_api,
+            modloader=modloader,
+            auto_report=report_failed,
+        ) as updater:
+            data = updater.from_path(
+                                path=path,
+                                version=version,
+                                only_release=only_release
+                            )
+            updater.download_files(modfiles=data)
+            if report_failed:
+                if updater.some_errors():
+                    report_data = updater.report_failed_updates()
 
-    with ModUpdater(
-        api_key=key_api,
-        modloader=modloader,
-        auto_report=report_failed,
-    ) as updater:
-        data = updater.from_path(
-                            path=path,
-                            version=version,
-                            only_release=only_release
-                        )
-        updater.download_files(modfiles=data)
-        if report_failed:
-            if updater.some_errors():
-                report_data = updater.report_failed_updates()
+                    msg = "-- Manual update is required."
+                    msg += " Visit the links to download the corresponding mod. --\n"
+                    print(msg)
+                    for name, link  in report_data:
+                        print(f"{name},  {link}")
+                    print()
 
-                msg = "-- Manual update is required."
-                msg += " Visit the links to download the corresponding mod. --\n"
-                print(msg)
-                for name, link  in report_data:
-                    print(f"{name},  {link}")
-                print()
+    except (Exception, KeyboardInterrupt) as e:
+        print(e)
 
 
 
