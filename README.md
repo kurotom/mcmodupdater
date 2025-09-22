@@ -1,6 +1,6 @@
 # mcmodupdater
 
-Automates the task of updating mods.
+Automates the task of updating mods, data is obtained from the website (from the API) [CurseForge](https://www.curseforge.com/minecraft).
 
 In case of errors, it will generate a report with the address of the mod project that could not be updated.
 
